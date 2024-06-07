@@ -10,6 +10,7 @@ Cargo.lock
 Cargo.toml
 *.rlib
 
+
 # Ignore IDE and editor-specific files
 .idea/
 .vscode/
