@@ -16,3 +16,14 @@ pub fn write_administrator(e: &Env, id: &Address) {
     let key = DataKey::Admin;
     e.storage().instance().set(&key, id);
 }
+
+
+pub fn read_oracle(e: &Env) -> Address {
+    let key = DataKey::Oracle;
+    e.storage().instance().get(&key).unwrap()
+}
+
+pub fn write_oracle(e: &Env, id: &Address) {
+    let key = DataKey::Oracle;
+    e.storage().instance().set(&key, id);
+}

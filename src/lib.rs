@@ -3,8 +3,8 @@ mod admin;
 mod balance;
 mod storage_types;
 use crate::storage_types::DataKey;
-use crate::admin::{has_administrator, read_administrator, write_administrator};
-use crate::balance::{read_user_balance, add_balance, subtract_balance, read_pool_balance, read_depositors};
+use crate::admin::{has_administrator, read_administrator, write_administrator, read_oracle, write_oracle};
+use crate::balance::{read_user_balance, add_balance, subtract_balance, read_pool_balance, write_pool_balance, read_depositors};
 use soroban_sdk::{contract, contractimpl, token, Address, Env, String};
 // use soroban_sdk::String;
 
@@ -22,6 +22,9 @@ pub trait MultiChainTransferTrait {
 
     fn get_token_evm_address(e: &Env, soroban_address: Address) -> Option<String>;
     fn set_token_evm_address(e: &Env, soroban_address: Address, evm_address_string: String);
+
+    fn get_oracle(e: Env) -> Address;
+    fn set_oracle(e: Env, oracle_address: Address);
 }
 
 #[contract]
@@ -52,6 +55,8 @@ impl MultiChainTransferTrait for MultiChainBridge {
         from.require_auth();
         // Perform the swap by moving tokens from a to b and from b to a.
         take_token(&env, &token_address, &from,  amount);
+        write_pool_balance(&env, amount);
+        
 
         env.events().publish((from.clone(), "multichain_transfer_sent"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
     }
@@ -71,6 +76,7 @@ impl MultiChainTransferTrait for MultiChainBridge {
         oracle.require_auth();
         // Perform the swap by moving tokens from a to b and from b to a.
         send_token(&env, &token_address, &to,  amount);
+        write_pool_balance(&env, -amount);
 
         env.events().publish((to.clone(), "multichain_transfer_received"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
     }
@@ -134,6 +140,16 @@ impl MultiChainTransferTrait for MultiChainBridge {
         admin.require_auth();
         let key =DataKey::SorobanEth(soroban_address);
         e.storage().persistent().set(&key, &evm_address_string);        
+    }
+
+    fn get_oracle(e: Env) -> Address {
+        read_oracle(&e)
+    }
+
+    fn set_oracle(e: Env, oracle_address: Address){
+        let admin =read_administrator(&e);
+        admin.require_auth();
+        write_oracle(&e, &oracle_address);
     }
 }
 

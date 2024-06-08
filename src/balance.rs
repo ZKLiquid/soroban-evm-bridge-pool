@@ -33,7 +33,7 @@ pub fn read_pool_balance(e: &Env) -> i128 {
     }
 }
 
-fn write_pool_balance(e: &Env, amount: i128) {
+pub fn write_pool_balance(e: &Env, amount: i128) {
     if amount < 0 {
         panic!("Amount must be non-negative");
     }

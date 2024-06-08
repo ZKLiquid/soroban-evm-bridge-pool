@@ -26,4 +26,5 @@ pub enum DataKey {
     TotalPoolBalance,
     TotalDepositors,
     Admin,
+    Oracle,
 }
