@@ -4,17 +4,21 @@ mod balance;
 mod storage_types;
 use crate::storage_types::DataKey;
 use crate::admin::{has_administrator, read_administrator, write_administrator};
-use crate::balance::{read_balance, add_balance, subtract_balance};
+use crate::balance::{read_user_balance, add_balance, subtract_balance, read_pool_balance, read_depositors};
 use soroban_sdk::{contract, contractimpl, token, Address, Env, String};
 // use soroban_sdk::String;
-
 
 pub trait MultiChainTransferTrait {
     fn initialize(e: Env, admin: Address);
     fn transfer_to_evm(env: Env, from: Address, to: String, token_address: Address, amount: i128);
+    fn transfer_payout(env: Env, oracle: Address, to: Address, token_address: Address, amount: i128);
+
     fn deposit_token( env: Env, from: Address, token_address: Address, amount: i128);
     fn withdraw_token( env: Env, to: Address, token_address: Address, amount: i128);
-    fn transfer_payout(env: Env, oracle: Address, to: Address, token_address: Address, amount: i128);
+    fn get_user_balance(e: &Env, user: Address) -> i128;
+    fn get_pool_balance(e: &Env)-> i128 ;
+    fn get_users_count(e: &Env) -> i128;
+    
 
     fn get_token_evm_address(e: &Env, soroban_address: Address) -> Option<String>;
     fn set_token_evm_address(e: &Env, soroban_address: Address, evm_address_string: String);
@@ -33,6 +37,44 @@ impl MultiChainTransferTrait for MultiChainBridge {
         write_administrator(&e, &admin);
        
     }
+
+    fn transfer_to_evm(
+        env: Env,
+        from: Address,
+        to: String,
+        token_address: Address,
+        amount: i128,
+    ) {
+        // Verify preconditions on the minimum price for both parties.
+        if amount < 0 {
+            panic!("not enough token A for token B");
+        }
+        from.require_auth();
+        // Perform the swap by moving tokens from a to b and from b to a.
+        take_token(&env, &token_address, &from,  amount);
+
+        env.events().publish((from.clone(), "multichain_transfer_sent"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
+    }
+
+    //Send receieved transfer from evm blockchain to the recipient 
+    fn transfer_payout(
+        env: Env,
+        oracle: Address,
+        to: Address,
+        token_address: Address,
+        amount: i128,
+    ) {
+        // Verify preconditions on the minimum price for both parties.
+        if amount < 0 {
+            panic!("not enough token A for token B");
+        }
+        oracle.require_auth();
+        // Perform the swap by moving tokens from a to b and from b to a.
+        send_token(&env, &token_address, &to,  amount);
+
+        env.events().publish((to.clone(), "multichain_transfer_received"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
+    }
+
 
     fn deposit_token( env: Env,
         from: Address,
@@ -55,7 +97,7 @@ impl MultiChainTransferTrait for MultiChainBridge {
             if amount <= 0 {
                 panic!("Amount must be positive");
             }
-            let cur_balance = read_balance(&env, to.clone());
+            let cur_balance = read_user_balance(&env, to.clone());
 
             if amount > cur_balance {
                 panic!("You cannot withdraw an amount greater than your balance");
@@ -64,43 +106,21 @@ impl MultiChainTransferTrait for MultiChainBridge {
             send_token(&env, &token_address, &to,  amount);
         }
 
-    fn transfer_to_evm(
-        env: Env,
-        from: Address,
-        to: String,
-        token_address: Address,
-        amount: i128,
-    ) {
-        // Verify preconditions on the minimum price for both parties.
-        if amount < 0 {
-            panic!("not enough token A for token B");
+
+        fn get_user_balance(e: &Env, user: Address)-> i128 {
+            let balance=read_user_balance(e, user);
+            return  balance;
         }
-        from.require_auth();
-        // Perform the swap by moving tokens from a to b and from b to a.
-        take_token(&env, &token_address, &from,  amount);
 
-        env.events().publish((from.clone(), "multichain_transfer_sent"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
-    }
-
-    //Send receieved transfer from evm blockchain to the recipient 
-
-    fn transfer_payout(
-        env: Env,
-        oracle: Address,
-        to: Address,
-        token_address: Address,
-        amount: i128,
-    ) {
-        // Verify preconditions on the minimum price for both parties.
-        if amount < 0 {
-            panic!("not enough token A for token B");
+        fn get_pool_balance(e: &Env)-> i128 {
+            let balance=read_pool_balance(e);
+            return  balance;
         }
-        oracle.require_auth();
-        // Perform the swap by moving tokens from a to b and from b to a.
-        send_token(&env, &token_address, &to,  amount);
 
-        env.events().publish((to.clone(), "multichain_transfer_received"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
-    }
+        fn get_users_count(e: &Env) -> i128 {
+            let count = read_depositors(e);
+            return  count;
+        }
 
 
     fn get_token_evm_address(e: &Env, soroban_address: Address) -> Option<String>{
@@ -142,6 +162,5 @@ fn send_token(
     token.transfer(&contract_address, to, &transfer_amount);
 
 }
-
 
 mod test;

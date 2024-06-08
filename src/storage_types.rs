@@ -23,5 +23,7 @@ pub enum DataKey {
     AddressMap,
     SorobanEth(Address),
     DepositBalance(Address),
+    TotalPoolBalance,
+    TotalDepositors,
     Admin,
 }
