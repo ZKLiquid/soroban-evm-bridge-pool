@@ -78,7 +78,7 @@ impl MultiChainTransferTrait for MultiChainBridge {
         send_token(&env, &token_address, &to,  amount);
         write_pool_balance(&env, -amount);
 
-        env.events().publish((to.clone(), "multichain_transfer_received"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
+        // env.events().publish((to.clone(), "multichain_transfer_received"),(amount, Self::get_token_evm_address(&env, token_address.clone()), to.clone()))
     }
 
 
